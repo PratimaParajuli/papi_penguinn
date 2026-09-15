@@ -202,12 +202,13 @@ function Login({ onLogin }) {
       }
 
       const payload = mode === 'login'
-        ? { email: form.email, password: form.password }
-        : { name: form.name, email: form.email, password: form.password }
+        ? { email: form.email, password: form.password, rememberMe }
+        : { name: form.name, email: form.email, password: form.password, rememberMe }
 
       const res = await fetch(`/api/auth/${mode === 'login' ? 'login' : 'register'}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(payload)
       })
       const data = await res.json().catch(() => ({}))
@@ -229,7 +230,7 @@ function Login({ onLogin }) {
 
       onLogin(data, rememberMe)
     } catch (err) {
-      setError(err instanceof TypeError ? 'We cannot reach Papi right now. Please make sure the app server is running, then try again.' : err.message)
+      setError(err instanceof TypeError ? 'Papi cannot reach the account server right now. Please restart the API server and try again.' : err.message)
     } finally {
       setLoading(false)
     }
@@ -394,6 +395,11 @@ function readStoredSession() {
   return null
 }
 
+function clearStoredSession() {
+  localStorage.removeItem('papi-session')
+  sessionStorage.removeItem('papi-session')
+}
+
 export default function App() {
   const [session, setSession] = useState(readStoredSession)
 
@@ -473,7 +479,7 @@ export default function App() {
   useEffect(() => {
     if (!session) return
 
-    fetch('/api/me', { headers: { Authorization: `Bearer ${session.token}` } })
+    fetch('/api/me', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data) => {
         const nextTasks = Array.isArray(data.tasks) && data.tasks.length ? data.tasks : defaultTasks
@@ -482,8 +488,7 @@ export default function App() {
         setRoutine(nextRoutine)
       })
       .catch(() => {
-        localStorage.removeItem('papi-session')
-        sessionStorage.removeItem('papi-session')
+        clearStoredSession()
         setSession(null)
       })
   }, [session])
@@ -542,9 +547,9 @@ export default function App() {
       fetch('/api/data', {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.token}`
+          'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({ tasks: nextTasks, routine: nextRoutine })
       })
     }
@@ -554,9 +559,9 @@ export default function App() {
     return fetch(`/api/tasks${path}`, {
       method,
       headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.token}`
+        'Content-Type': 'application/json'
       },
+      credentials: 'include',
       body: body ? JSON.stringify(body) : undefined
     })
   }
@@ -847,9 +852,9 @@ export default function App() {
           <button className="theme-toggle" onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}>
             {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
           </button>
-          <button onClick={() => {
-            localStorage.removeItem('papi-session')
-            sessionStorage.removeItem('papi-session')
+          <button onClick={async () => {
+            await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+            clearStoredSession()
             setSession(null)
           }}>Log out</button>
         </div>

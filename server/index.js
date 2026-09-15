@@ -19,10 +19,26 @@ function readStore() { return existsSync(storePath) ? JSON.parse(readFileSync(st
 function saveStore(store) { writeFileSync(storePath, JSON.stringify(store, null, 2)) }
 function publicUser(user) { return { id: user.id, name: user.name, email: user.email } }
 function makeToken(user) { return jwt.sign({ userId: user.id }, secret, { expiresIn: '7d' }) }
+function readCookie(req, name) {
+  const cookies = req.headers.cookie?.split(';').map((item) => item.trim()) || []
+  const cookie = cookies.find((item) => item.startsWith(`${name}=`))
+  return cookie ? decodeURIComponent(cookie.slice(name.length + 1)) : null
+}
+function setSessionCookie(res, token, rememberMe) {
+  const attributes = ['papi_session=' + encodeURIComponent(token), 'HttpOnly', 'SameSite=Lax', 'Path=/']
+  if (rememberMe) attributes.push('Max-Age=604800')
+  if (process.env.NODE_ENV === 'production') attributes.push('Secure')
+  res.setHeader('Set-Cookie', attributes.join('; '))
+}
+function clearSessionCookie(res) {
+  const attributes = ['papi_session=', 'Max-Age=0', 'HttpOnly', 'SameSite=Lax', 'Path=/']
+  if (process.env.NODE_ENV === 'production') attributes.push('Secure')
+  res.setHeader('Set-Cookie', attributes.join('; '))
+}
 
 // Authentication middleware attaches the verified account id to protected requests.
 function requireAuth(req, res, next) {
-  const token = req.headers.authorization?.replace('Bearer ', '')
+  const token = readCookie(req, 'papi_session')
   try { req.userId = jwt.verify(token, secret).userId; next() } catch { res.status(401).json({ message: 'Please log in again.' }) }
 }
 
@@ -43,7 +59,7 @@ function cleanTask(input, fallback = {}) {
 
 // Public account creation and login endpoints.
 app.post('/api/auth/register', async (req, res) => {
-  const { name, email, password } = req.body
+  const { name, email, password, rememberMe } = req.body
   const cleanName = name?.trim() || 'Penguin pal'
   const cleanEmail = email?.trim().toLowerCase()
   if (!cleanEmail || !password || password.length < 6) return res.status(400).json({ message: 'Enter a valid email and password of at least 6 characters.' })
@@ -66,11 +82,12 @@ app.post('/api/auth/register', async (req, res) => {
 
   store.users.push(user)
   saveStore(store)
-  res.status(201).json({ token: makeToken(user), user: publicUser(user) })
+  setSessionCookie(res, makeToken(user), rememberMe)
+  res.status(201).json({ user: publicUser(user) })
 })
 
 app.post('/api/auth/login', async (req, res) => {
-  const { email, password } = req.body
+  const { email, password, rememberMe } = req.body
   const cleanEmail = email?.trim().toLowerCase()
   if (!cleanEmail || !password || password.length < 6) return res.status(400).json({ message: 'Enter a valid email and password of at least 6 characters.' })
 
@@ -80,7 +97,13 @@ app.post('/api/auth/login', async (req, res) => {
   if (!user) return res.status(401).json({ message: 'Email or password is incorrect.' })
   if (!(await bcrypt.compare(password, user.passwordHash))) return res.status(401).json({ message: 'Email or password is incorrect.' })
 
-  res.json({ token: makeToken(user), user: publicUser(user) })
+  setSessionCookie(res, makeToken(user), rememberMe)
+  res.json({ user: publicUser(user) })
+})
+
+app.post('/api/auth/logout', (_req, res) => {
+  clearSessionCookie(res)
+  res.status(204).end()
 })
 
 // REST task resources. Every route is scoped to the authenticated account.

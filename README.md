@@ -31,10 +31,10 @@ npm run preview   # preview the Vite production build
 ## Data ownership
 
 Tasks belong to the authenticated user and are saved through the REST task endpoints. Routines are saved through `PUT /api/data`.
-Progress history and the selected theme are currently browser-local, using `localStorage`.
-The server stores passwords as bcrypt hashes and sends short-lived JWT sessions to the client.
+Progress history, the selected theme, and the remembered email are browser-local. The JWT session is stored in an `HttpOnly` cookie, so frontend JavaScript cannot read it. Remember me controls whether that cookie lasts seven days or only for the browser session.
+The server stores passwords as bcrypt hashes and clears the session cookie through `POST /api/auth/logout`.
 
-Tasks also expose REST endpoints: `GET /api/tasks`, `POST /api/tasks`, `PUT /api/tasks/:taskId`, and `DELETE /api/tasks/:taskId`. All require the JWT bearer token and only operate on the signed-in user's tasks.
+Tasks also expose REST endpoints: `GET /api/tasks`, `POST /api/tasks`, `PUT /api/tasks/:taskId`, and `DELETE /api/tasks/:taskId`. All require the HttpOnly session cookie and only operate on the signed-in user's tasks.
 
 ## Where to make common changes
 
