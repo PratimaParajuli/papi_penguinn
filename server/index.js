@@ -2,20 +2,36 @@ import 'dotenv/config'
 import bcrypt from 'bcryptjs'
 import express from 'express'
 import jwt from 'jsonwebtoken'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const app = express()
 const port = process.env.PORT || 3001
 const secret = process.env.JWT_SECRET || 'development-secret-change-before-deployment'
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET must be set in production.')
+}
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
-const storePath = join(root, 'data', 'store.json')
+const dataDirectory = join(root, 'data')
+const storePath = join(dataDirectory, 'store.json')
+
+// Deployments may not include the ignored JSON store, so create its directory on startup.
+mkdirSync(dataDirectory, { recursive: true })
 
 app.use(express.json())
 
+app.get('/api/health', (_req, res) => res.json({ ok: true }))
+
 // The JSON store keeps this small app easy to run locally. Use a database for production scale.
-function readStore() { return existsSync(storePath) ? JSON.parse(readFileSync(storePath, 'utf8')) : { users: [] } }
+function readStore() {
+  if (!existsSync(storePath)) return { users: [] }
+  try {
+    return JSON.parse(readFileSync(storePath, 'utf8'))
+  } catch {
+    return { users: [] }
+  }
+}
 function saveStore(store) { writeFileSync(storePath, JSON.stringify(store, null, 2)) }
 function publicUser(user) { return { id: user.id, name: user.name, email: user.email } }
 function makeToken(user) { return jwt.sign({ userId: user.id }, secret, { expiresIn: '7d' }) }

@@ -48,3 +48,4 @@ Tasks also expose REST endpoints: `GET /api/tasks`, `POST /api/tasks`, `PUT /api
 
 Set a long random `JWT_SECRET` and a production `PORT`. Express serves the compiled `dist` folder when running `npm start`.
 The JSON store is suitable for local use and small demos; use a managed database before running multiple server instances.
+Check `/api/health` after deployment; it should return `{ "ok": true }`.
