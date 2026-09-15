@@ -30,7 +30,7 @@ npm run preview   # preview the Vite production build
 
 ## Data ownership
 
-Tasks and routines belong to the authenticated user and are saved through `PUT /api/data`.
+Tasks belong to the authenticated user and are saved through the REST task endpoints. Routines are saved through `PUT /api/data`.
 Progress history and the selected theme are currently browser-local, using `localStorage`.
 The server stores passwords as bcrypt hashes and sends short-lived JWT sessions to the client.
 
