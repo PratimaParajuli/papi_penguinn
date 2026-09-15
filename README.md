@@ -34,6 +34,8 @@ Tasks and routines belong to the authenticated user and are saved through `PUT /
 Progress history and the selected theme are currently browser-local, using `localStorage`.
 The server stores passwords as bcrypt hashes and sends short-lived JWT sessions to the client.
 
+Tasks also expose REST endpoints: `GET /api/tasks`, `POST /api/tasks`, `PUT /api/tasks/:taskId`, and `DELETE /api/tasks/:taskId`. All require the JWT bearer token and only operate on the signed-in user's tasks.
+
 ## Where to make common changes
 
 - Add task fields or task behavior in `src/App.jsx`, then update the task form and `server/index.js` validation if needed.

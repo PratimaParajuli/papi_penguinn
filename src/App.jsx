@@ -550,10 +550,22 @@ export default function App() {
     }
   }
 
+  function taskRequest(path, method, body) {
+    return fetch(`/api/tasks${path}`, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.token}`
+      },
+      body: body ? JSON.stringify(body) : undefined
+    })
+  }
+
   function toggleTaskComplete(task) {
     const nextTaskState = !task.completed
     const nextTasks = tasks.map((item) => item.id === task.id ? { ...item, completed: nextTaskState } : item)
-    persist(nextTasks, routine)
+    setTasks(nextTasks)
+    taskRequest(`/${task.id}`, 'PUT', { completed: nextTaskState }).catch(() => setTasks(tasks))
 
     if (nextTaskState) {
       recordProgress('task', task.text, task.id, 1)
@@ -587,7 +599,8 @@ export default function App() {
           ? { ...task, text, category: taskForm.category, priority: taskForm.priority, dueDate: taskForm.dueDate }
           : task
       )
-      persist(updated, routine)
+      setTasks(updated)
+      taskRequest(`/${taskEditId}`, 'PUT', updated.find((task) => task.id === taskEditId)).catch(() => setTasks(tasks))
       setTaskEditId(null)
     } else {
       const nextTask = {
@@ -598,7 +611,8 @@ export default function App() {
         dueDate: taskForm.dueDate,
         completed: false
       }
-      persist([...tasks, nextTask], routine)
+      setTasks([...tasks, nextTask])
+      taskRequest('', 'POST', nextTask).catch(() => setTasks(tasks))
     }
 
     setTaskForm({ text: '', category: 'Study', priority: 'Medium', dueDate: '' })
@@ -1099,7 +1113,10 @@ export default function App() {
                       </div>
                       <div className="task-actions">
                         <button className="icon-button" onClick={() => startTaskEdit(task)}>✎</button>
-                        <button className="icon-button" onClick={() => persist(tasks.filter((item) => item.id !== task.id), routine)}>×</button>
+                        <button className="icon-button" onClick={() => {
+                          setTasks(tasks.filter((item) => item.id !== task.id))
+                          taskRequest(`/${task.id}`, 'DELETE').catch(() => setTasks(tasks))
+                        }}>×</button>
                       </div>
                     </li>
                   ))
